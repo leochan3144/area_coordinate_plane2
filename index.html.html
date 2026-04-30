@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S.1 Math: Quadrilateral Area Game</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+        p.subtitle {
+            color: #7f8c8d;
+            margin-top: 0;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .game-container {
+            display: flex;
+            flex-direction: row;
+            gap: 30px;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        canvas {
+            border: 2px solid #bdc3c7;
+            background-color: #fff;
+            border-radius: 5px;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 280px; 
+        }
+        .display-area {
+            width: 100%;
+            height: 50px;
+            background: #ecf0f1;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+        }
+        .numpad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        .numpad button {
+            padding: 15px 0;
+            font-size: 20px;
+            font-weight: bold;
+            color: #2c3e50;
+            background-color: #ecf0f1;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .numpad button:hover {
+            background-color: #d5dbdb;
+        }
+        .numpad button.clear {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .numpad button.clear:hover {
+            background-color: #c0392b;
+        }
+        .action-btn {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            background-color: #27ae60;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-bottom: 10px;
+        }
+        .action-btn:hover {
+            background-color: #2ecc71;
+        }
+        .feedback {
+            font-size: 18px;
+            font-weight: bold;
+            height: 25px;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        .hint {
+            font-size: 14px;
+            color: #d35400;
+            text-align: center;
+            font-style: italic;
+            min-height: 45px; 
+            margin-bottom: 10px;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 16px;
+            font-weight: bold;
+            color: #34495e;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Find the Area of the Quadrilateral</h1>
+    <p class="subtitle">Use the "Box Method" (splitting into triangles and rectangles)!</p>
+
+    <div class="game-container">
+        <div>
+            <canvas id="mathCanvas" width="400" height="400"></canvas>
+        </div>
+
+        <div class="controls">
+            <div class="stats">
+                <span id="scoreDisplay">Score: 0</span>
+                <span id="roundDisplay">Round: 1</span>
+            </div>
+            
+            <div id="feedback" class="feedback"></div>
+            <div id="hintDisplay" class="hint"></div>
+            
+            <div class="display-area" id="inputDisplay"></div>
+
+            <div class="numpad">
+                <button onclick="input('1')">1</button>
+                <button onclick="input('2')">2</button>
+                <button onclick="input('3')">3</button>
+                <button onclick="input('4')">4</button>
+                <button onclick="input('5')">5</button>
+                <button onclick="input('6')">6</button>
+                <button onclick="input('7')">7</button>
+                <button onclick="input('8')">8</button>
+                <button onclick="input('9')">9</button>
+                <button class="clear" onclick="clearInput()">C</button>
+                <button onclick="input('0')">0</button>
+                <button onclick="input('.')">.</button>
+            </div>
+
+            <button class="action-btn" onclick="checkAnswer()">Submit Answer</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mathCanvas');
+        const ctx = canvas.getContext('2d');
+        const display = document.getElementById('inputDisplay');
+        const feedback = document.getElementById('feedback');
+        const hintDisplay = document.getElementById('hintDisplay');
+        
+        let currentInput = "";
+        let currentArea = 0;
+        let points = [];
+        let score = 0;
+        let round = 1;
+
+        const gridSize = 20; // 20 pixels per unit
+        const originX = canvas.width / 2;
+        const originY = canvas.height / 2;
+
+        function init() {
+            generateQuestion();
+        }
+
+        function generateQuestion() {
+            currentInput = "";
+            display.innerText = "";
+            feedback.innerText = "";
+            hintDisplay.innerText = ""; // Clear hint for new question
+            
+            // Generate 4 random points
+            while (true) {
+                points = [];
+                for (let i = 0; i < 4; i++) {
+                    points.push({
+                        x: Math.floor(Math.random() * 16) - 8, // Between -8 and +8
+                        y: Math.floor(Math.random() * 16) - 8  // Between -8 and +8
+                    });
+                }
+
+                // Sort points counter-clockwise to ensure a simple convex/concave polygon (no self-intersections)
+                let cx = points.reduce((sum, p) => sum + p.x, 0) / 4;
+                let cy = points.reduce((sum, p) => sum + p.y, 0) / 4;
+                points.sort((a, b) => Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx));
+
+                // Calculate Area using Shoelace Formula
+                let area = 0;
+                for (let i = 0; i < 4; i++) {
+                    let j = (i + 1) % 4;
+                    area += points[i].x * points[j].y - points[j].x * points[i].y;
+                }
+                currentArea = Math.abs(area) / 2;
+
+                // Ensure the area is large enough and not a straight line
+                if (currentArea > 4) {
+                    break;
+                }
+            }
+
+            drawPlane();
+            drawPolygon();
+        }
+
+        function drawPlane() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Grid
+            ctx.strokeStyle = "#ecf0f1";
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= canvas.width; i += gridSize) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+            }
+
+            // Draw Axes
+            ctx.strokeStyle = "#2c3e50";
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(originX, 0); ctx.lineTo(originX, canvas.height); ctx.stroke(); // Y axis
+            ctx.beginPath(); ctx.moveTo(0, originY); ctx.lineTo(canvas.width, originY); ctx.stroke(); // X axis
+
+            // Labels
+            ctx.fillStyle = "#2c3e50";
+            ctx.font = "12px Arial";
+            ctx.fillText("x", canvas.width - 15, originY - 10);
+            ctx.fillText("y", originX + 10, 15);
+            ctx.fillText("0", originX + 5, originY + 15);
+        }
+
+        function drawPolygon() {
+            if (points.length === 0) return;
+
+            // Draw shape
+            ctx.beginPath();
+            ctx.moveTo(originX + points[0].x * gridSize, originY - points[0].y * gridSize);
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(originX + points[i].x * gridSize, originY - points[i].y * gridSize);
+            }
+            ctx.closePath();
+            
+            ctx.fillStyle = "rgba(52, 152, 219, 0.4)";
+            ctx.fill();
+            ctx.strokeStyle = "#2980b9";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw Vertices and Labels
+            const labels = ['A', 'B', 'C', 'D'];
+            ctx.fillStyle = "#c0392b";
+            for (let i = 0; i < points.length; i++) {
+                let px = originX + points[i].x * gridSize;
+                let py = originY - points[i].y * gridSize;
+                
+                // Point dot
+                ctx.beginPath();
+                ctx.arc(px, py, 4, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // Text coordinate
+                ctx.fillStyle = "#2c3e50";
+                ctx.font = "bold 14px Arial";
+                
+                // Offset text to prevent overlapping the dot
+                let textOffset_x = points[i].x >= 0 ? 8 : -50;
+                let textOffset_y = points[i].y >= 0 ? -8 : 15;
+                
+                ctx.fillText(`${labels[i]}(${points[i].x}, ${points[i].y})`, px + textOffset_x, py + textOffset_y);
+                ctx.fillStyle = "#c0392b"; // reset color for next dot
+            }
+        }
+
+        function input(val) {
+            // Prevent multiple decimals
+            if (val === '.' && currentInput.includes('.')) return;
+            // Limit input length
+            if (currentInput.length >= 6) return;
+            
+            currentInput += val;
+            display.innerText = currentInput;
+        }
+
+        function clearInput() {
+            currentInput = "";
+            display.innerText = "";
+        }
+
+        function checkAnswer() {
+            if (currentInput === "") return;
+
+            let studentAnswer = parseFloat(currentInput);
+            if (studentAnswer === currentArea) {
+                feedback.style.color = "#27ae60";
+                feedback.innerText = "Correct! +1 Mark";
+                hintDisplay.innerText = ""; // Clear hint on success
+                score += 1;
+                document.getElementById('scoreDisplay').innerText = `Score: ${score}`;
+                setTimeout(nextQuestion, 1500);
+            } else {
+                feedback.style.color = "#e74c3c";
+                feedback.innerText = "Incorrect. -1 Mark.";
+                
+                // Deduct 1 mark, minimum 0
+                score = Math.max(0, score - 1); 
+                document.getElementById('scoreDisplay').innerText = `Score: ${score}`;
+                
+                // Generate Bounding Box Hint
+                let minX = Math.min(...points.map(p => p.x));
+                let maxX = Math.max(...points.map(p => p.x));
+                let minY = Math.min(...points.map(p => p.y));
+                let maxY = Math.max(...points.map(p => p.y));
+                let rectWidth = maxX - minX;
+                let rectHeight = maxY - minY;
+                let rectArea = rectWidth * rectHeight;
+                
+                hintDisplay.innerText = `Hint: Draw a rectangle bounding the shape (${rectWidth} units by ${rectHeight} units). Area = ${rectArea}. Then, subtract the outer right-angled triangles!`;
+                
+                clearInput();
+            }
+        }
+
+        function nextQuestion() {
+            round++;
+            document.getElementById('roundDisplay').innerText = `Round: ${round}`;
+            generateQuestion();
+        }
+
+        // Start game
+        window.onload = init;
+    </script>
+</body>
+</html>
